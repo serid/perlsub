@@ -32,16 +32,28 @@
           TIMEOUT = "${coreutils}/bin/timeout";
           ALLOW_DIRS = "${perl},${util-linux},${util-linux.lib},${glibc},${libxcrypt}";
         };
+        envString = with pkgs.lib; concatStringsSep " " (mapAttrsToList (name: value:
+          throwIf (strings.hasInfix " " value) "Env values shall not contain whitespace"
+          (name + "=" + value)) envVars);
       in
       rec {
         packages.perlsub = naersk-lib.buildPackage {
           pname = "perlsub";
           root = ./.;
         };
+        packages.run-perlsub = pkgs.writeScriptBin "run-perlsub" ''
+          #!/bin/sh
+          env ${envString} ${self.defaultPackage.${system}}/bin/perlsub
+        '';
         defaultPackage = packages.perlsub;
 
-        apps.perlsub = packages.perlsub;
-        defaultApp = apps.perlsub;
+        # `nix bundle` searches for a package in `apps` output before checking `packages`
+        # so we annotate the app with a suffix
+        apps.run-perlsub-app = {
+          type = "app";
+          program = "${self.packages.${system}.run-perlsub}/bin/run-perlsub";
+        };
+        defaultApp = apps.run-perlsub-app;
 
         nixosModules.default = with pkgs.lib; { config, ... }:
           let cfg = config.services.perlsub;
@@ -66,7 +78,7 @@
                 serviceConfig = {
                     ExecStart = "${self.defaultPackage.${system}}/bin/perlsub";
                     EnvironmentFile = cfg.envFile;
-                    Environment = concatStringsSep " " (pkgs.lib.mapAttrsToList (name: value: name + "=" + value) envVars);
+                    Environment = envString;
                     User = "perlsub";
                     Group = "nogroup";
                 };
