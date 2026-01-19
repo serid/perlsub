@@ -47,6 +47,22 @@
           #!/bin/sh
           env ${envString} ${self.defaultPackage.${system}}/bin/perlsub
         '';
+        packages.service = pkgs.writeText "perlsub.service" ''
+          [Unit]
+          After=network.target
+          Requires=network.target
+
+          [Service]
+          Type=simple
+          ExecStart=${self.defaultPackage.${system}}/bin/perlsub
+          EnvironmentFile=/etc/perlsub.env
+          Environment=${envString}
+          User=perlsub
+          Group=nogroup
+
+          [Install]
+          WantedBy=multi-user.target
+        '';
         defaultPackage = packages.perlsub;
 
         # `nix bundle` searches for a package in `apps` output before checking `packages`
