@@ -60,6 +60,8 @@
                 isSystemUser = true;
               };
               systemd.services.perlsub = {
+                after = [ "network.target" ];
+                requires = [ "network.target" ];
                 wantedBy = [ "multi-user.target" ];
                 serviceConfig = {
                     ExecStart = "${self.defaultPackage.${system}}/bin/perlsub";
